@@ -172,6 +172,14 @@ int available_fd(void)
   return -1;
 }
 
+int is_open(char* filename, int loc){
+  for(int i = 0; i < FD_MAX_COUNT; i++){
+    if(fdscpt[i].rdr_i == loc)
+      return 1;
+  }
+  return 0;
+}
+
 int fs_mount(const char *diskname)
 {
 	/* TODO: Phase 1 */
@@ -234,6 +242,7 @@ int fs_delete(const char *filename)
   if(!is_valid_fname(filename)) return -1;
   int loc = file_exist(filename);
   if(loc == -1) return -1;
+  if(is_open(filename, loc)) return -1;
   fat_del(rdr.f[loc].data_i);
   if((char *) rdr.f[loc].file_name == NULL) return -1;
   strcpy((char *) rdr.f[loc].file_name, "\0");
