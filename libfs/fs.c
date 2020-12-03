@@ -421,6 +421,7 @@ int fs_write(int fd, void *buf, size_t count)
   }
   int next = fat_end_loc(fd);
   for(int i=0; i<extra; i++){
+    if(available_fat() == -1) break;
     fat[next] = available_fat();
     next = fat[next];
     fat[next] = FAT_EOC;
@@ -448,6 +449,7 @@ int fs_write(int fd, void *buf, size_t count)
       count -= n_write;
       written += n_write;
       cur_block = next_fat(cur_block);
+      if(cur_block == FAT_EOC) break;
     }
     offset -= BLOCK_SIZE;
     if(offset <= 0)
