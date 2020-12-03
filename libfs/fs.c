@@ -181,24 +181,31 @@ int is_open(char* filename, int loc)
   return 0;
 }
 
-int from_block(int offset)
+int from_block(int fd)
 {
-  int result = offset / BLOCK_SIZE;
-  return result;
+  int result = fdscpt[fd].offset / BLOCK_SIZE;
+  return result + 1;
 }
 
-int to_block(size_t count, int offset)
+int get_remainOffset(int fd)
 {
-  int result = (count+offset)/BLOCK_SIZE;
-  if((count+offset)%BLOCK_SIZE == 0)
-  {
-    return result;
-  }
-  else
-  {
-    return result+1;
-  }
+  int block_num = from_block(fd) - 1;
+  int result = fdscpt[fd].offset - block_num*BLOCK_SIZE;
+  return result;
 }
+//
+// int to_block(size_t count, int offset)
+// {
+//   int result = (count+offset)/BLOCK_SIZE;
+//   if((count+offset)%BLOCK_SIZE == 0)
+//   {
+//     return result;
+//   }
+//   else
+//   {
+//     return result+1;
+//   }
+// }
 
 int get_filesize(int fd)
 {
@@ -343,6 +350,72 @@ int fs_lseek(int fd, size_t offset)
 
 int fs_write(int fd, void *buf, size_t count)
 {
+  if(!mounted) return -1;
+  if (fd > FD_MAX_COUNT || fd < 0) return -1;
+  if (fdscpt[fd].rdr_i == -1) return -1;
+  uint8_t *bounce_buf = malloc(BLOCK_SIZE);
+  int block_index = get_fileindex(fd) - sb.data_i;
+  int temp_index = -1;
+  int rest_size = get_filesize(fd) - fdscpt[fd].offset;
+  int temp_next_block = -1;
+  int less_block = -1;
+  int real_block_num = 0;
+  int temp_block_index = block_index;
+  int block_n = 0;
+  int needed_block = 0;
+  int block_count = 0;
+  int real_count = count;
+
+  while (get_nextdataindex(temp_block_index) != FAT_EOC)
+  {
+    temp_block_index = get_nextdataindex(temp_block_index)
+    block_n++;
+  }
+
+  if (rest_size < count)
+  {
+    needed_block = (count - rest_size)/BLOCK_SIZE + 1;
+    temp_index = 0;
+    temp_next_block = get_nextdataindex(block_index);
+    while (temp_next_block != FAT_EOC)
+    {
+      temp_index = temp_next_block;
+      temp_next_block = get_nextdataindex(temp_index);
+    }
+    for (size_t j = 0; j < needed_block ; j++)
+    {
+      for (size_t i = 0; i < sb.n_data; i++)
+      {
+        if (fat[i] == 0)
+        {
+          fat[temp_index] = i;
+          temp_index = i;
+        }
+        if (i == sb.n_data && fat[i] != 0)
+        {
+          less_block = needed_block - j;
+          real_count = rest_size + j*BLOCK_SIZE;
+        }
+      }
+    }
+    fat[temp_index] = FAT_EOC;
+  }
+
+  uint8_t *file_buff = malloc((block_n + needed_block) * BLOCK_SIZE);
+  uint8_t *write_buff = malloc((block_n + needed_block) * BLOCK_SIZE);
+  uint8_t *block_buff = malloc(BLOCK_SIZE);
+
+  do
+  {
+    block_read(block_index, &block_buf);
+    memcpy(&file_buff+BLOCK_SIZE*block_count, &block_buf, BLOCK_SIZE);
+    block_index = get_nextdataindex(block_index) + sb.data_i;
+    block_count++
+  } while(block_index != FAT_EOC);
+
+  memcpy(&write_buff[offset], &buf, count);
+  memcpy(&write_buff, &file_buff[offset], offset);
+  memcpy
 
 }
 
@@ -355,8 +428,20 @@ int fs_read(int fd, void *buf, size_t count)
   int block_index = get_fileindex(fd) - sb.data_i;
   int block_count = 0;
   int block_n = 0;
+  int real_count = -1;
+  int temp_block_index = block_index;
 
-  while (get_nextdataindex(block_index) != FAT_EOC) {
+  if(get_filesize(fd)-fdscpt[fd].offset < count)
+  {
+    real_count = get_filesize(fd)-fdscpt[fd].offset;
+  }
+  else if(get_filesize(fd)-fdscpt[fd].offset < count)
+  {
+    real_count = count;
+  }
+
+  while (get_nextdataindex(temp_block_index) != FAT_EOC) {
+    temp_block_index = get_nextdataindex(temp_block_index)
     block_n++;
   }
 
@@ -366,9 +451,11 @@ int fs_read(int fd, void *buf, size_t count)
   do
   {
     block_read(block_index, &block_buf);
-    memcpy(&bounce_buf+BLOCK_SIZE, &block_buf, BLOCK_SIZE);
+    memcpy(&bounce_buf+BLOCK_SIZE*block_count, &block_buf, BLOCK_SIZE);
     block_index = get_nextdataindex(block_index) + sb.data_i;
+    block_count++
   } while(block_index != FAT_EOC);
 
-  memcpy(&buf, &bounce_buf[fdscpt[fd].offset], count);
+  memcpy(&buf, &bounce_buf[fdscpt[fd].offset], real_count);
+  return count;
 }
