@@ -356,7 +356,7 @@ int fs_ls(void)
   printf("FS Ls:\n");
   for(int i = 0; i < FS_FILE_MAX_COUNT; i++){
     if(rdr.f[i].file_name[0] != '\0'){
-      printf("file: %s, size: %d, data_blk: %d\n", rdr.f[i].file_name,
+      printf("file: %s, size: %d, data_balk: %d\n", rdr.f[i].file_name,
               rdr.f[i].file_size, rdr.f[i].data_i - (sb.data_i));
     }
   }
