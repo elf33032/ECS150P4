@@ -156,7 +156,6 @@ int available_file(void)
 
 void fat_del(size_t index)
 {
-  index -= sb.data_i;
   size_t index_next;
   while(index != FAT_EOC){
     index_next = fat[index];
@@ -231,7 +230,7 @@ int next_fat(int fat_i)
 
 int fat_end_loc(int fd)
 {
-  int cur = rdr.f[fdscpt[fd].rdr_i].data_i - sb.data_i;
+  int cur = rdr.f[fdscpt[fd].rdr_i].data_i;
   while(fat[cur] != FAT_EOC){
     cur = fat[cur];
   }
@@ -240,7 +239,7 @@ int fat_end_loc(int fd)
 
 int fat_count(int fd)
 {
-  int cur = rdr.f[fdscpt[fd].rdr_i].data_i - sb.data_i;
+  int cur = rdr.f[fdscpt[fd].rdr_i].data_i;
   int count = 1;
   while(fat[cur] != FAT_EOC){
     cur = fat[cur];
@@ -356,8 +355,8 @@ int fs_ls(void)
   printf("FS Ls:\n");
   for(int i = 0; i < FS_FILE_MAX_COUNT; i++){
     if(rdr.f[i].file_name[0] != '\0'){
-      printf("file: %s, size: %d, data_balk: %d\n", rdr.f[i].file_name,
-              rdr.f[i].file_size, rdr.f[i].data_i - (sb.data_i));
+      printf("file: %s, size: %d, data_blk: %d\n", rdr.f[i].file_name,
+              rdr.f[i].file_size, rdr.f[i].data_i);
     }
   }
   return 0;
@@ -412,13 +411,12 @@ int fs_write(int fd, void *buf, size_t count)
 
   int offset = fdscpt[fd].offset;
   int extra = extra_block(count, offset, get_size(fd));
-  int data_start = sb.data_i;
   uint8_t * bounce_buffer = malloc(BLOCK_SIZE);
 
   if(count != 0 && get_data_index(fd) == FAT_EOC){
     //create new fat
     int new_fat = available_fat();
-    set_data_index(fd, new_fat + data_start);
+    set_data_index(fd, new_fat);
     fat[new_fat] = FAT_EOC;
   }
   int next = fat_end_loc(fd);
@@ -449,7 +447,7 @@ int fs_write(int fd, void *buf, size_t count)
       buf_pos += BLOCK_SIZE - offset;
       count -= n_write;
       written += n_write;
-      cur_block = next_fat(cur_block - data_start) + data_start;
+      cur_block = next_fat(cur_block);
     }
     offset -= BLOCK_SIZE;
     if(offset <= 0)
@@ -466,7 +464,7 @@ int fs_read(int fd, void *buf, size_t count)
   if (fd > FS_OPEN_MAX_COUNT || fd < 0) return -1;
   if (fdscpt[fd].rdr_i == -1) return -1;
 
-  int block_index = get_fileindex(fd) - sb.data_i;
+  int block_index = get_fileindex(fd);
   int block_count = 0;
   int block_n = 0;
   int real_count = -1;
