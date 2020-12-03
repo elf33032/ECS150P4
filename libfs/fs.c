@@ -492,7 +492,6 @@ int fs_read(int fd, void *buf, size_t count)
     block_index = get_nextdataindex(block_index);
     block_count++;
   } while(block_index != FAT_EOC);
-  printf("It is %c\n", bounce_buf[fdscpt[fd].offset]);
   memcpy(buf, bounce_buf+fdscpt[fd].offset, real_count);
   return count;
 }
