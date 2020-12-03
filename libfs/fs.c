@@ -366,8 +366,9 @@ int fs_read(int fd, void *buf, size_t count)
   do
   {
     block_read(block_index, &block_buf);
-    memcpy(&bounce_buf+BLOCK_SIZE, &block_buf, BLOCK_SIZE);
+    memcpy(&bounce_buf+BLOCK_SIZE*block_count, &block_buf, BLOCK_SIZE);
     block_index = get_nextdataindex(block_index) + sb.data_i;
+    block_count++
   } while(block_index != FAT_EOC);
 
   memcpy(&buf, &bounce_buf[fdscpt[fd].offset], count);
