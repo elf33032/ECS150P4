@@ -172,12 +172,49 @@ int available_fd(void)
   return -1;
 }
 
-int is_open(char* filename, int loc){
+int is_open(char* filename, int loc)
+{
   for(int i = 0; i < FD_MAX_COUNT; i++){
     if(fdscpt[i].rdr_i == loc)
       return 1;
   }
   return 0;
+}
+
+int from_block(int offset)
+{
+  int result = offset / BLOCK_SIZE;
+  return result;
+}
+
+int to_block(size_t count, int offset)
+{
+  int result = (count+offset)/BLOCK_SIZE;
+  if((count+offset)%BLOCK_SIZE == 0)
+  {
+    return result;
+  }
+  else
+  {
+    return result+1;
+  }
+}
+
+int get_filesize(int fd)
+{
+  int result = rdr.f[fdscpt[fd].rdr_i].file_size;
+  return result;
+}
+
+int get_fileindex(int fd)
+{
+  int result = rdr.f[fdscpt[fd].rdr_i].data_i;
+  return result;
+}
+
+int get_nextdataindex(int pre_index){
+  int result = fat[pre_index];
+  return result;
 }
 
 int fs_mount(const char *diskname)
@@ -306,10 +343,32 @@ int fs_lseek(int fd, size_t offset)
 
 int fs_write(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
+
 }
 
 int fs_read(int fd, void *buf, size_t count)
 {
-	/* TODO: Phase 4 */
+  if(!mounted) return -1;
+  if (fd > FD_MAX_COUNT || fd < 0) return -1;
+  if (fdscpt[fd].rdr_i == -1) return -1;
+
+  int block_index = get_fileindex(fd) - sb.data_i;
+  int block_count = 0;
+  int block_n = 0;
+
+  while (get_nextdataindex(block_index) != FAT_EOC) {
+    block_n++;
+  }
+
+  uint8_t *bounce_buf = malloc(block_n * BLOCK_SIZE);
+  uint8_t *block_buf = malloc(BLOCK_SIZE);
+
+  do
+  {
+    block_read(block_index, &block_buf);
+    memcpy(&bounce_buf+BLOCK_SIZE, &block_buf, BLOCK_SIZE);
+    block_index = get_nextdataindex(block_index) + sb.data_i;
+  } while(block_index != FAT_EOC);
+
+  memcpy(&buf, &bounce_buf[fdscpt[fd].offset], count);
 }
