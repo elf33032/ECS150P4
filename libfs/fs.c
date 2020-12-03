@@ -454,6 +454,7 @@ int fs_write(int fd, void *buf, size_t count)
       offset = 0;
   }
   rdr.f[fdscpt[fd].rdr_i].file_size += written;
+  fdscpt[fd].offset = fdscpt[fd].offset + written;
   return written;
 }
 
@@ -493,5 +494,6 @@ int fs_read(int fd, void *buf, size_t count)
     block_count++;
   } while(block_index != FAT_EOC);
   memcpy(buf, bounce_buf+fdscpt[fd].offset, real_count);
-  return count;
+  fdscpt[fd].offset = fdscpt[fd].offset + real_count;
+  return real_count;
 }
