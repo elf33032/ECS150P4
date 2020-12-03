@@ -434,7 +434,7 @@ int fs_write(int fd, void *buf, size_t count)
   int written = 0;
   for(int i=0; i<tot_block; i++){
     if(offset < BLOCK_SIZE){
-      block_read(cur_block, bounce_buffer);
+      block_read(cur_block + sb.data_i, bounce_buffer);
 
       if(count + offset > BLOCK_SIZE){
         n_write = BLOCK_SIZE - offset;
@@ -443,7 +443,7 @@ int fs_write(int fd, void *buf, size_t count)
         n_write = count;
       }
       memcpy(bounce_buffer + offset, buf + buf_pos, n_write);
-      block_write(cur_block, bounce_buffer);
+      block_write(cur_block + sb.data_i, bounce_buffer);
       buf_pos += BLOCK_SIZE - offset;
       count -= n_write;
       written += n_write;
@@ -487,11 +487,12 @@ int fs_read(int fd, void *buf, size_t count)
   uint8_t *block_buf = malloc(BLOCK_SIZE);
   do
   {
-    block_read(block_index, block_buf);
+    block_read(block_index + sb.data_i, block_buf);
     memcpy(bounce_buf+BLOCK_SIZE*block_count, block_buf, BLOCK_SIZE);
     block_index = get_nextdataindex(block_index);
     block_count++;
   } while(block_index != FAT_EOC);
+  printf("It is %c\n", bounce_buf[fdscpt[fd].offset]);
   memcpy(buf, bounce_buf+fdscpt[fd].offset, real_count);
   return count;
 }
